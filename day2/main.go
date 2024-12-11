@@ -1,10 +1,9 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
-	"log"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -15,95 +14,136 @@ const (
 	Decreasing
 )
 
-func parseWorker(in chan string, out chan []int) {
-	for l := range in {
-		vals := strings.Split(l, " ")
-		valNums := make([]int, len(vals))
+func checkLine(e []int) bool {
+	state := Unset
 
-		for i := 0; i < len(vals); i++ {
-			n, _ := strconv.Atoi(vals[i])
-			valNums[i] = n
+	for i := 0; i < len(e)-1; i++ {
+		prevState := state
+
+		diff := e[i] - e[i+1]
+		switch {
+		case diff > 0:
+			state = Increasing
+			if diff > 3 {
+				return false
+			}
+		case diff < 0:
+			state = Decreasing
+			if diff < -3 {
+				return false
+			}
+		default:
+			return false
 		}
 
-		out <- valNums
+		if prevState != Unset && prevState != state {
+			return false
+		}
 	}
-	close(out)
+
+	return true
 }
 
-func evalWorker(in chan []int, res chan bool) {
+func evalWorker(in chan []int, res chan bool, dampen bool) {
 	for e := range in {
-		state := Unset
-		valid := true
-		dampened := false
+		valid := false
 
-		for i := 0; i < len(e)-1; i++ {
-			prevState := state
+		ok := checkLine(e)
+		if ok {
+			valid = true
+		} else {
+			fmt.Printf("Truely Undampened: %v\n", e)
+			if dampen {
+				for i := 0; i < len(e); i++ {
+					newE := slices.Concat(e[:i], e[i+1:])
+					fmt.Printf("Dampened %v\n", newE)
+					//fmt.Printf("Dampened entry: %v\n", newE)
+					newOk := checkLine(newE)
 
-			diff := e[i] - e[i+1]
-			switch {
-			case diff > 0:
-				state = Increasing
-				if diff > 3 {
-					valid = false
-				}
-			case diff < 0:
-				state = Decreasing
-				if diff < -3 {
-					valid = false
-				}
-			default:
-				valid = false
-			}
-
-			if prevState != Unset && prevState != state {
-				valid = false
-			}
-
-			if !valid {
-				if !dampened {
-					e = append(e[:i], e[i+1:]...)
-					valid = true
-				} else {
-					break
+					if newOk {
+						valid = true
+						break
+					}
 				}
 			}
 		}
-
 		res <- valid
 	}
-	close(res)
 }
 
-func main() {
-	r, err := os.Open("input.txt")
-	if err != nil {
-		log.Fatal(err.Error())
+func readInput(filename string) [][]int {
+	inputList := make([][]int, 0)
+	data, _ := os.ReadFile(filename)
+
+	lines := strings.Split(string(data), "\n")
+	for _, line := range lines {
+		elemList := make([]int, 0)
+		l := strings.Split(line, " ")
+		for _, v := range l {
+			i, _ := strconv.Atoi(v)
+			elemList = append(elemList, i)
+		}
+		inputList = append(inputList, elemList)
 	}
 
-	inputs := make(chan string)
-	outputs := make(chan []int)
+	return inputList
+}
+
+func part1(inputList [][]int) {
+	inputs := make(chan []int)
 	entryRes := make(chan bool)
 	validEntries := 0
 	totalEntries := 0
 
-	go parseWorker(inputs, outputs)
-	go evalWorker(outputs, entryRes)
+	go evalWorker(inputs, entryRes, false)
 
 	go func() {
-		for v := range entryRes {
-			if v {
-				validEntries++
-			}
+		for _, l := range inputList {
+			inputs <- l
 		}
 	}()
 
-	b := bufio.NewScanner(r)
-	for b.Scan() {
-		t := b.Text()
-		inputs <- t
+	for i := 0; i < len(inputList); i++ {
+		v := <-entryRes
+		totalEntries++
+		if v {
+			validEntries++
+		}
+	}
+
+	fmt.Printf("Valid entries: %d\n", validEntries)
+	fmt.Printf("Total entries: %d\n", totalEntries)
+}
+
+func part2(inputList [][]int) {
+	inputs := make(chan []int)
+	entryRes := make(chan bool)
+	validEntries := 0
+	totalEntries := 0
+
+	go evalWorker(inputs, entryRes, true)
+
+	go func() {
+		for _, l := range inputList {
+			inputs <- l
+		}
+	}()
+
+	for i := 0; i < len(inputList); i++ {
+		v := <-entryRes
+
+		if v {
+			validEntries++
+		}
 		totalEntries++
 	}
 
 	fmt.Printf("Valid entries: %d\n", validEntries)
 	fmt.Printf("Total entries: %d\n", totalEntries)
+}
+
+func main() {
+	inputList := readInput("input.txt")
+	part1(inputList)
+	part2(inputList)
 }
