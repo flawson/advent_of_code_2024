@@ -139,28 +139,20 @@ func part2(input SearchMap) int {
 		}
 	}
 
-	for mKey := range m {
-		if m[mKey] == "M" {
-			mFrags := strings.Split(mKey, ",")
-			m1, _ := strconv.Atoi(mFrags[0])
-			m2, _ := strconv.Atoi(mFrags[1])
+	for aKey := range m {
+		if m[aKey] == "A" {
+			aFrags := strings.Split(aKey, ",")
+			a1, _ := strconv.Atoi(aFrags[0])
+			a2, _ := strconv.Atoi(aFrags[1])
 
-			for _, dir := range []Direction{
-				DirUpDiagLeft,
-				DirUpDiagRight,
-				DirDownDiagLeft,
-				DirDownDiagRight,
-			} {
-				aKey := getKeyMap(m1, m2, dir)
-				if m[aKey] == "A" {
-					aFrags := strings.Split(mKey, ",")
-					a1, _ := strconv.Atoi(aFrags[0])
-					a2, _ := strconv.Atoi(aFrags[1])
+			keyUpDiagLeft := getKeyMap(a1, a2, DirUpDiagLeft)
+			keyUpDiagRight := getKeyMap(a1, a2, DirUpDiagRight)
+			keyDownDiagLeft := getKeyMap(a1, a2, DirDownDiagLeft)
+			keyDownDiagRight := getKeyMap(a1, a2, DirDownDiagRight)
 
-					sKey := getKeyMap(a1, a2, dir)
-					if m[sKey] == "S" {
-						count++
-					}
+			if (m[keyUpDiagLeft] == "M" && m[keyDownDiagRight] == "S") || (m[keyUpDiagLeft] == "S" && m[keyDownDiagRight] == "M") {
+				if (m[keyUpDiagRight] == "M" && m[keyDownDiagLeft] == "S") || (m[keyUpDiagRight] == "S" && m[keyDownDiagLeft] == "M") {
+					count++
 				}
 			}
 		}
